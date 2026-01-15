@@ -123,4 +123,226 @@
 
         .prestige-btn {
             width: 100%;
-            padding: 15
+            padding: 15px;
+            background: #6200ea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none; /* Skjult til man når målet */
+        }
+
+        .achievements-box {
+            background: #111;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: var(--accent);
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="clicker-section">
+        <div id="event-banner">🔥 BOOST: 2X KLIKK-VERDI! 🔥</div>
+        
+        <div class="stats-display">
+            <p>Din formue:</p>
+            <h1 class="balance-text"><span id="balance">0</span> ₿</h1>
+            <p>Per klikk: <span id="click-power">1</span> ₿ | Per sek: <span id="passive-power">0</span> ₿</p>
+            <p id="prestige-info" style="color: #888;"></p>
+        </div>
+
+        <div class="btc-main-btn" onclick="handleMainClick()">₿</div>
+        
+        <div class="achievements-box" id="ach-list">
+            <b>Achievements:</b>
+            <div id="ach-messages">Ingen enda...</div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h2>Butikk</h2>
+        <div class="shop-container" id="shop-ui">
+            </div>
+
+        <div class="prestige-area">
+            <button id="prestige-button" class="prestige-btn" onclick="triggerPrestige()">
+                PRESTIGE (Reset for 2x Multiplikator)
+            </button>
+            <small id="prestige-hint" style="color: #666; display: block; text-align: center;">
+                Nå 10,000 ₿ for å låse opp Prestige
+            </small>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        let game = {
+            bitcoin: 0,
+            totalMined: 0,
+            prestigeMultiplier: 1,
+            eventMultiplier: 1,
+            unlockedItems: ['computer'], // Start-item
+            achievements: [],
+            upgrades: {
+                computer: { name: "Computer", cost: 20, bonus: 2, count: 0, type: 'click', unlockAt: 0 },
+                worker: { name: "Worker", cost: 100, bonus: 5, count: 0, type: 'passive', unlockAt: 50 },
+                wifi: { name: "Better WiFi", cost: 500, bonus: 15, count: 0, type: 'click', unlockAt: 300 },
+                office: { name: "Office with Workers", cost: 2000, bonus: 50, count: 0, type: 'passive', unlockAt: 1000 }
+            }
+        };
+
+        // --- HOVEDFUNKSJONER ---
+        function handleMainClick() {
+            const amount = getClickValue();
+            game.bitcoin += amount;
+            game.totalMined += amount;
+            checkUnlocks();
+            checkAchievements();
+            updateUI();
+        }
+
+        function getClickValue() {
+            let base = 1;
+            // Legg til alle klikk-oppgraderinger
+            for (let id in game.upgrades) {
+                if (game.upgrades[id].type === 'click') {
+                    base += (game.upgrades[id].count * game.upgrades[id].bonus);
+                }
+            }
+            return base * game.prestigeMultiplier * game.eventMultiplier;
+        }
+
+        function getPassiveValue() {
+            let base = 0;
+            for (let id in game.upgrades) {
+                if (game.upgrades[id].type === 'passive') {
+                    base += (game.upgrades[id].count * game.upgrades[id].bonus);
+                }
+            }
+            return base * game.prestigeMultiplier;
+        }
+
+        function buyItem(id) {
+            const item = game.upgrades[id];
+            const currentCost = Math.floor(item.cost * Math.pow(1.2, item.count));
+
+            if (game.bitcoin >= currentCost) {
+                game.bitcoin -= currentCost;
+                item.count++;
+                updateUI();
+            } else {
+                alert("Ikke nok Bitcoin!");
+            }
+        }
+
+        // --- PRESTIGE & EVENTS ---
+        function triggerPrestige() {
+            if (game.totalMined >= 10000) {
+                if (confirm("Vil du resette progresjonen? Du beholder prestigen og får 2x mer Bitcoin permanent per prestige-nivå!")) {
+                    game.bitcoin = 0;
+                    game.prestigeMultiplier *= 2;
+                    // Reset upgrades
+                    for (let id in game.upgrades) {
+                        game.upgrades[id].count = 0;
+                    }
+                    updateUI();
+                }
+            }
+        }
+
+        function startRandomEvent() {
+            if (Math.random() > 0.7) { // 30% sjanse hvert 30. sekund
+                game.eventMultiplier = 2;
+                document.getElementById('event-banner').style.display = 'block';
+                setTimeout(() => {
+                    game.eventMultiplier = 1;
+                    document.getElementById('event-banner').style.display = 'none';
+                }, 10000); // Varer i 10 sekunder
+            }
+        }
+
+        // --- SYSTEMER ---
+        function checkUnlocks() {
+            for (let id in game.upgrades) {
+                if (!game.unlockedItems.includes(id) && game.totalMined >= game.upgrades[id].unlockAt) {
+                    game.unlockedItems.push(id);
+                }
+            }
+            
+            // Prestige knapp logikk
+            if (game.totalMined >= 10000) {
+                document.getElementById('prestige-button').style.display = 'block';
+                document.getElementById('prestige-hint').style.display = 'none';
+            }
+        }
+
+        function checkAchievements() {
+            const achBox = document.getElementById('ach-messages');
+            const milestones = [100, 1000, 5000, 10000];
+            
+            milestones.forEach(m => {
+                if (game.totalMined >= m && !game.achievements.includes(m)) {
+                    game.achievements.push(m);
+                    const div = document.createElement('div');
+                    div.innerText = `🏆 Mål nådd: ${m} ₿ totalt!`;
+                    if (achBox.innerText === "Ingen enda...") achBox.innerHTML = "";
+                    achBox.prepend(div);
+                }
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('balance').innerText = Math.floor(game.bitcoin).toLocaleString();
+            document.getElementById('click-power').innerText = getClickValue();
+            document.getElementById('passive-power').innerText = getPassiveValue();
+            document.getElementById('prestige-info').innerText = `Prestige Multiplikator: ${game.prestigeMultiplier}x`;
+
+            const shopUI = document.getElementById('shop-ui');
+            shopUI.innerHTML = '';
+
+            for (let id in game.upgrades) {
+                const item = game.upgrades[id];
+                if (!game.unlockedItems.includes(id)) continue;
+
+                const cost = Math.floor(item.cost * Math.pow(1.2, item.count));
+                const canAfford = game.bitcoin >= cost;
+
+                const div = document.createElement('div');
+                div.className = `shop-item ${canAfford ? '' : 'disabled'}`;
+                div.onclick = () => buyItem(id);
+                div.innerHTML = `
+                    <div class="item-info">
+                        <b>${item.name}</b> (${item.count})<br>
+                        <span class="item-price">Pris: ${cost} ₿</span><br>
+                        <small>Gir +${item.bonus} per ${item.type === 'click' ? 'klikk' : 'sek'}</small>
+                    </div>
+                `;
+                shopUI.appendChild(div);
+            }
+        }
+
+        // --- LOOPS ---
+        // Passiv inntekt (hvert sekund)
+        setInterval(() => {
+            const income = getPassiveValue();
+            if (income > 0) {
+                game.bitcoin += (income / 10); // Kjører 10 ganger i sekundet for smooth oppdatering
+                game.totalMined += (income / 10);
+                updateUI();
+            }
+        }, 100);
+
+        // Sjekk for events hvert 30. sekund
+        setInterval(startRandomEvent, 30000);
+
+        // Initial rendering
+        updateUI();
+    </script>
+</body>
+</html>
