@@ -3,278 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Tycoon - Ultimate Clicker</title>
+    <title>Bitcoin Tycoon Pro</title>
     <style>
         :root {
-            --btc-color: #f7931a;
-            --bg: #121212;
-            --panel: #1e1e1e;
-            --text: #ffffff;
+            --btc-orange: #f7931a;
+            --bg-dark: #0f0f0f;
+            --panel-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --accent: #4caf50;
         }
 
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
             margin: 0;
             display: flex;
             height: 100vh;
             overflow: hidden;
         }
 
-        /* Venstre side: Klikke-område */
-        .main-game {
+        /* --- VENSTRE SIDE: KLIKKEREN --- */
+        .clicker-section {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            position: relative;
+        }
+
+        #event-banner {
+            position: absolute;
+            top: 20px;
+            background: var(--btc-orange);
+            color: black;
+            padding: 10px 30px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(247, 147, 26, 0.5);
+        }
+
+        .btc-main-btn {
+            font-size: 180px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+            filter: drop-shadow(0 0 30px rgba(247, 147, 26, 0.2));
+            margin: 20px 0;
+        }
+
+        .btc-main-btn:active {
+            transform: scale(0.92);
+        }
+
+        .stats-display {
             text-align: center;
         }
 
-        .btc-main-icon {
-            font-size: 150px;
-            cursor: pointer;
-            user-select: none;
-            transition: transform 0.05s;
-            filter: drop-shadow(0 0 20px rgba(247, 147, 26, 0.2));
+        .balance-text {
+            font-size: 3rem;
+            color: var(--btc-orange);
+            margin: 0;
+            font-weight: 900;
         }
 
-        .btc-main-icon:active {
-            transform: scale(0.95);
-        }
-
-        /* Høyre side: Butikk og Stats */
+        /* --- HØYRE SIDE: BUTIKK --- */
         .sidebar {
-            width: 350px;
-            background-color: var(--panel);
+            width: 400px;
+            background: var(--panel-bg);
             border-left: 2px solid #333;
             display: flex;
             flex-direction: column;
             padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .shop-container {
+            flex-grow: 1;
             overflow-y: auto;
-        }
-
-        .stats-panel {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #444;
-        }
-
-        .balance-large {
-            font-size: 2.5rem;
-            color: var(--btc-color);
-            margin: 10px 0;
+            margin-top: 10px;
         }
 
         .shop-item {
             background: #2a2a2a;
-            margin-bottom: 10px;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border: 2px solid transparent;
             cursor: pointer;
-            border: 1px solid #444;
             transition: 0.2s;
         }
 
-        .shop-item:hover:not(.disabled) {
-            background: #353535;
-            border-color: var(--btc-color);
+        .shop-item:hover:not(.locked) {
+            border-color: var(--btc-orange);
+            background: #333;
         }
 
         .shop-item.disabled {
-            opacity: 0.4;
+            opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .shop-item.hidden {
+        .shop-item.locked {
             display: none;
         }
 
-        .item-header {
-            display: flex;
-            justify-content: space-between;
-            font-weight: bold;
+        .item-info b { font-size: 1.1rem; color: var(--btc-orange); }
+        .item-price { color: #aaa; font-size: 0.9rem; }
+
+        /* Prestige Seksjon */
+        .prestige-area {
+            padding-top: 20px;
+            border-top: 2px solid #333;
+            margin-top: 10px;
         }
 
         .prestige-btn {
-            background: #6200ea;
-            color: white;
-            border: none;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            display: none;
-        }
-
-        /* Event varsel */
-        #event-toast {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--btc-color);
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-weight: bold;
-            display: none;
-            animation: bounce 0.5s infinite alternate;
-        }
-
-        @keyframes bounce { from { top: 20px; } to { top: 30px; } }
-    </style>
-</head>
-<body>
-
-    <div id="event-toast">BOOST! 2x klikk-verdi i 10 sekunder!</div>
-
-    <div class="main-game">
-        <div class="stats-panel">
-            <h1>Bitcoin Miner</h1>
-            <div class="balance-large"><span id="balance">0</span> ₿</div>
-            <div>Inntekt per sek: <span id="bps">0</span> ₿</div>
-        </div>
-
-        <div class="btc-main-icon" onclick="mineClick()">₿</div>
-        <p>Klikk på ikonet for å utvinne</p>
-        
-        <div id="achievements" style="margin-top: 20px; color: #888; font-style: italic;"></div>
-    </div>
-
-    <div class="sidebar">
-        <h2>Butikk & Oppgraderinger</h2>
-        <div id="shop-list">
-            </div>
-
-        <button id="prestige-btn" class="prestige-btn" onclick="prestige()">
-            PRESTIGE: Reset for 2x Permanent Bonus?
-        </button>
-    </div>
-
-    <script>
-        // Spill-data
-        let gameState = {
-            bitcoin: 0,
-            totalMined: 0,
-            clickValue: 1,
-            passiveIncome: 0,
-            prestigeMultiplier: 1,
-            eventMultiplier: 1,
-            upgrades: {
-                computer: { name: "Computer", count: 0, basePrice: 200, bonus: 2, type: 'click' },
-                worker: { name: "Worker", count: 0, basePrice: 500, bonus: 4, type: 'passive' },
-                wifi: { name: "Better WiFi", count: 0, basePrice: 1200, bonus: 10, type: 'click' },
-                office: { name: "Office", count: 0, basePrice: 3000, bonus: 25, type: 'passive' }
-            },
-            achievements: []
-        };
-
-        // Initialiser butikk
-        function renderShop() {
-            const shopList = document.getElementById('shop-list');
-            shopList.innerHTML = '';
-            
-            for (let id in gameState.upgrades) {
-                let item = gameState.upgrades[id];
-                let price = Math.floor(item.basePrice * Math.pow(1.15, item.count));
-                
-                // Vis bare hvis man har hatt råd til det før (gradvis låsing)
-                let isHidden = gameState.totalMined < item.basePrice * 0.8;
-
-                const div = document.createElement('div');
-                div.className = `shop-item ${gameState.bitcoin < price ? 'disabled' : ''} ${isHidden ? 'hidden' : ''}`;
-                div.onclick = () => buyUpgrade(id);
-                div.innerHTML = `
-                    <div class="item-header">
-                        <span>${item.name} (${item.count})</span>
-                        <span>${price} ₿</span>
-                    </div>
-                    <small>+${item.bonus} per ${item.type === 'click' ? 'klikk' : 'sek'}</small>
-                `;
-                shopList.appendChild(div);
-            }
-        }
-
-        function mineClick() {
-            let gain = gameState.clickValue * gameState.prestigeMultiplier * gameState.eventMultiplier;
-            gameState.bitcoin += gain;
-            gameState.totalMined += gain;
-            checkAchievements();
-            updateUI();
-        }
-
-        function buyUpgrade(id) {
-            let item = gameState.upgrades[id];
-            let price = Math.floor(item.basePrice * Math.pow(1.15, item.count));
-
-            if (gameState.bitcoin >= price) {
-                gameState.bitcoin -= price;
-                item.count++;
-                
-                if (item.type === 'click') {
-                    gameState.clickValue += item.bonus;
-                } else {
-                    gameState.passiveIncome += item.bonus;
-                }
-                updateUI();
-            }
-        }
-
-        function checkAchievements() {
-            if (gameState.totalMined >= 1000 && !gameState.achievements.includes('1k')) {
-                gameState.achievements.push('1k');
-                document.getElementById('achievements').innerText = "Achievement: Nybegynner Miner (1,000 totalt)";
-            }
-            if (gameState.totalMined >= 10000) {
-                document.getElementById('prestige-btn').style.display = 'block';
-            }
-        }
-
-        function prestige() {
-            if (confirm("Vil du resette alt for å doble inntjeningen din permanent?")) {
-                gameState.bitcoin = 0;
-                gameState.clickValue = 1;
-                gameState.passiveIncome = 0;
-                gameState.prestigeMultiplier *= 2;
-                for (let id in gameState.upgrades) gameState.upgrades[id].count = 0;
-                updateUI();
-                alert("Prestige fullført! Du har nå " + gameState.prestigeMultiplier + "x multiplikator.");
-            }
-        }
-
-        // Tilfeldige events
-        setInterval(() => {
-            if (Math.random() > 0.95) { // 5% sjanse hvert 10. sekund
-                gameState.eventMultiplier = 2;
-                document.getElementById('event-toast').style.display = 'block';
-                setTimeout(() => {
-                    gameState.eventMultiplier = 1;
-                    document.getElementById('event-toast').style.display = 'none';
-                }, 10000);
-            }
-        }, 10000);
-
-        // Game Loop (Passiv inntekt hvert sekund)
-        setInterval(() => {
-            if (gameState.passiveIncome > 0) {
-                let gain = (gameState.passiveIncome * gameState.prestigeMultiplier) / 10;
-                gameState.bitcoin += gain;
-                gameState.totalMined += gain;
-                updateUI();
-            }
-        }, 100);
-
-        function updateUI() {
-            document.getElementById('balance').innerText = Math.floor(gameState.bitcoin);
-            document.getElementById('bps').innerText = (gameState.passiveIncome * gameState.prestigeMultiplier).toFixed(1);
-            renderShop();
-        }
-
-        // Start
-        updateUI();
-    </script>
-</body>
-</html>
+            width: 100%;
+            padding: 15
