@@ -2,347 +2,190 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Tycoon Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iPad 3D Car Sim</title>
     <style>
-        :root {
-            --btc-orange: #f7931a;
-            --bg-dark: #0f0f0f;
-            --panel-bg: #1e1e1e;
-            --text-main: #ffffff;
-            --accent: #4caf50;
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        canvas { display: block; }
+
+        /* HUD */
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
         }
+        .stat { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
 
-        body {
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
+        /* iPad Kontroller */
+        .controls {
+            position: absolute; bottom: 30px; width: 100%;
+            display: flex; justify-content: space-between; padding: 0 40px;
+            box-sizing: border-box; pointer-events: none;
         }
-
-        /* --- VENSTRE SIDE: KLIKKEREN --- */
-        .clicker-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+        .btn {
+            width: 90px; height: 90px; background: rgba(255,255,255,0.2);
+            border: 3px solid white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 40px;
+            pointer-events: auto; user-select: none;
+            -webkit-user-select: none;
         }
+        .btn:active { background: rgba(247, 147, 26, 0.6); transform: scale(0.9); }
+        .steering { display: flex; gap: 20px; }
+        .pedals { display: flex; gap: 20px; }
 
-        #event-banner {
-            position: absolute;
-            top: 20px;
-            background: var(--btc-orange);
-            color: black;
-            padding: 10px 30px;
-            border-radius: 5px;
-            font-weight: bold;
-            display: none;
-            z-index: 10;
-            box-shadow: 0 0 20px rgba(247, 147, 26, 0.5);
-        }
-
-        .btc-main-btn {
-            font-size: 180px;
-            cursor: pointer;
-            user-select: none;
-            transition: transform 0.1s;
-            filter: drop-shadow(0 0 30px rgba(247, 147, 26, 0.2));
-            margin: 20px 0;
-        }
-
-        .btc-main-btn:active {
-            transform: scale(0.92);
-        }
-
-        .stats-display {
-            text-align: center;
-        }
-
-        .balance-text {
-            font-size: 3rem;
-            color: var(--btc-orange);
-            margin: 0;
-            font-weight: 900;
-        }
-
-        /* --- HØYRE SIDE: BUTIKK --- */
-        .sidebar {
-            width: 400px;
-            background: var(--panel-bg);
-            border-left: 2px solid #333;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .shop-container {
-            flex-grow: 1;
-            overflow-y: auto;
-            margin-top: 10px;
-        }
-
-        .shop-item {
-            background: #2a2a2a;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .shop-item:hover:not(.locked) {
-            border-color: var(--btc-orange);
-            background: #333;
-        }
-
-        .shop-item.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .shop-item.locked {
-            display: none;
-        }
-
-        .item-info b { font-size: 1.1rem; color: var(--btc-orange); }
-        .item-price { color: #aaa; font-size: 0.9rem; }
-
-        /* Prestige Seksjon */
-        .prestige-area {
-            padding-top: 20px;
-            border-top: 2px solid #333;
-            margin-top: 10px;
-        }
-
-        .prestige-btn {
-            width: 100%;
-            padding: 15px;
-            background: #6200ea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            display: none; /* Skjult til man når målet */
-        }
-
-        .achievements-box {
-            background: #111;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-            font-size: 0.85rem;
-            color: var(--accent);
-            max-height: 100px;
-            overflow-y: auto;
+        /* Butikk */
+        #shop {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9); padding: 30px; border-radius: 20px;
+            display: none; color: white; border: 2px solid #f7931a;
         }
     </style>
 </head>
 <body>
 
-    <div class="clicker-section">
-        <div id="event-banner">🔥 BOOST: 2X KLIKK-VERDI! 🔥</div>
-        
-        <div class="stats-display">
-            <p>Din formue:</p>
-            <h1 class="balance-text"><span id="balance">0</span> ₿</h1>
-            <p>Per klikk: <span id="click-power">1</span> ₿ | Per sek: <span id="passive-power">0</span> ₿</p>
-            <p id="prestige-info" style="color: #888;"></p>
-        </div>
+    <div id="ui">
+        <div class="stat">BANK: $<span id="money">500</span></div>
+        <div class="stat">FART: <span id="speed">0</span> KM/H</div>
+        <div class="stat" id="wanted" style="color: red;"></div>
+    </div>
 
-        <div class="btc-main-btn" onclick="handleMainClick()">₿</div>
-        
-        <div class="achievements-box" id="ach-list">
-            <b>Achievements:</b>
-            <div id="ach-messages">Ingen enda...</div>
+    <div id="shop">
+        <h2>BILBUTIKK & GARASJE</h2>
+        <p>Oppgrader motor (+20 km/h): $200</p>
+        <button onclick="buyUpgrade()" style="padding: 10px 20px; cursor: pointer;">KJØP MOTOR</button>
+        <button onclick="toggleShop()" style="padding: 10px 20px; margin-left: 10px;">LUKK</button>
+    </div>
+
+    <div class="controls">
+        <div class="steering">
+            <div class="btn" id="btn-left">←</div>
+            <div class="btn" id="btn-right">→</div>
+        </div>
+        <div class="btn" style="position: fixed; top: 20px; right: 20px; font-size: 20px;" onclick="toggleShop()">SHOP</div>
+        <div class="pedals">
+            <div class="btn" id="btn-rev">B</div>
+            <div class="btn" id="btn-gas">G</div>
         </div>
     </div>
 
-    <div class="sidebar">
-        <h2>Butikk</h2>
-        <div class="shop-container" id="shop-ui">
-            </div>
-
-        <div class="prestige-area">
-            <button id="prestige-button" class="prestige-btn" onclick="triggerPrestige()">
-                PRESTIGE (Reset for 2x Multiplikator)
-            </button>
-            <small id="prestige-hint" style="color: #666; display: block; text-align: center;">
-                Nå 10,000 ₿ for å låse opp Prestige
-            </small>
-        </div>
-    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 
     <script>
-        // --- DATA ---
-        let game = {
-            bitcoin: 0,
-            totalMined: 0,
-            prestigeMultiplier: 1,
-            eventMultiplier: 1,
-            unlockedItems: ['computer'], // Start-item
-            achievements: [],
-            upgrades: {
-                computer: { name: "Computer", cost: 20, bonus: 2, count: 0, type: 'click', unlockAt: 0 },
-                worker: { name: "Worker", cost: 100, bonus: 5, count: 0, type: 'passive', unlockAt: 50 },
-                wifi: { name: "Better WiFi", cost: 500, bonus: 15, count: 0, type: 'click', unlockAt: 300 },
-                office: { name: "Office with Workers", cost: 2000, bonus: 50, count: 0, type: 'passive', unlockAt: 1000 }
-            }
+        // --- CONFIG & VARIABLER ---
+        let money = 500;
+        let maxSpeed = 30; // m/s (ca 108 km/h)
+        let accel = 0, steer = 0;
+        
+        // Scene oppsett
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb); // Himmelblå
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Fysikk verden
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+
+        // --- BAKKEN (OPEN WORLD) ---
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        world.addBody(groundBody);
+
+        // --- BILEN ---
+        const carBox = new THREE.BoxGeometry(2, 1, 4);
+        const carMat = new THREE.MeshStandardMaterial({ color: 0xf7931a });
+        const carMesh = new THREE.Mesh(carBox, carMat);
+        scene.add(carMesh);
+
+        const carBody = new CANNON.Body({ 
+            mass: 1500, 
+            shape: new CANNON.Box(new CANNON.Vec3(1, 0.5, 2)) 
+        });
+        carBody.position.set(0, 2, 0);
+        world.addBody(carBody);
+
+        // Lys
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 20, 10);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // --- TOUCH INPUT LOGIKK ---
+        const setupBtn = (id, onDown, onUp) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(); });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); onUp(); });
         };
 
-        // --- HOVEDFUNKSJONER ---
-        function handleMainClick() {
-            const amount = getClickValue();
-            game.bitcoin += amount;
-            game.totalMined += amount;
-            checkUnlocks();
-            checkAchievements();
-            updateUI();
-        }
+        setupBtn('btn-gas', () => accel = 1, () => accel = 0);
+        setupBtn('btn-rev', () => accel = -1, () => accel = 0);
+        setupBtn('btn-left', () => steer = 1, () => steer = 0);
+        setupBtn('btn-right', () => steer = -1, () => steer = 0);
 
-        function getClickValue() {
-            let base = 1;
-            // Legg til alle klikk-oppgraderinger
-            for (let id in game.upgrades) {
-                if (game.upgrades[id].type === 'click') {
-                    base += (game.upgrades[id].count * game.upgrades[id].bonus);
-                }
+        // --- GAME LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            world.step(1/60);
+
+            // Bilbevegelse
+            if (Math.abs(accel) > 0) {
+                const forward = new CANNON.Vec3(0, 0, accel * 5000);
+                const rotatedForward = carBody.quaternion.vmult(forward);
+                carBody.applyForce(rotatedForward, carBody.position);
             }
-            return base * game.prestigeMultiplier * game.eventMultiplier;
-        }
 
-        function getPassiveValue() {
-            let base = 0;
-            for (let id in game.upgrades) {
-                if (game.upgrades[id].type === 'passive') {
-                    base += (game.upgrades[id].count * game.upgrades[id].bonus);
-                }
-            }
-            return base * game.prestigeMultiplier;
-        }
+            // Svinging
+            carBody.angularVelocity.y = steer * (carBody.velocity.length() * 0.1);
 
-        function buyItem(id) {
-            const item = game.upgrades[id];
-            const currentCost = Math.floor(item.cost * Math.pow(1.2, item.count));
+            // Oppdater grafikk
+            carMesh.position.copy(carBody.position);
+            carMesh.quaternion.copy(carBody.quaternion);
 
-            if (game.bitcoin >= currentCost) {
-                game.bitcoin -= currentCost;
-                item.count++;
-                updateUI();
-            } else {
-                alert("Ikke nok Bitcoin!");
-            }
-        }
+            // Kamera følger bil (Third person)
+            const offset = new THREE.Vector3(0, 5, 10).applyQuaternion(carMesh.quaternion);
+            camera.position.copy(carMesh.position).add(offset);
+            camera.lookAt(carMesh.position);
 
-        // --- PRESTIGE & EVENTS ---
-        function triggerPrestige() {
-            if (game.totalMined >= 10000) {
-                if (confirm("Vil du resette progresjonen? Du beholder prestigen og får 2x mer Bitcoin permanent per prestige-nivå!")) {
-                    game.bitcoin = 0;
-                    game.prestigeMultiplier *= 2;
-                    // Reset upgrades
-                    for (let id in game.upgrades) {
-                        game.upgrades[id].count = 0;
-                    }
-                    updateUI();
-                }
-            }
-        }
-
-        function startRandomEvent() {
-            if (Math.random() > 0.7) { // 30% sjanse hvert 30. sekund
-                game.eventMultiplier = 2;
-                document.getElementById('event-banner').style.display = 'block';
-                setTimeout(() => {
-                    game.eventMultiplier = 1;
-                    document.getElementById('event-banner').style.display = 'none';
-                }, 10000); // Varer i 10 sekunder
-            }
-        }
-
-        // --- SYSTEMER ---
-        function checkUnlocks() {
-            for (let id in game.upgrades) {
-                if (!game.unlockedItems.includes(id) && game.totalMined >= game.upgrades[id].unlockAt) {
-                    game.unlockedItems.push(id);
-                }
-            }
+            // UI
+            const speedKmh = Math.round(carBody.velocity.length() * 3.6);
+            document.getElementById('speed').innerText = speedKmh;
             
-            // Prestige knapp logikk
-            if (game.totalMined >= 10000) {
-                document.getElementById('prestige-button').style.display = 'block';
-                document.getElementById('prestige-hint').style.display = 'none';
+            renderer.render(scene, camera);
+        }
+
+        // --- SHOP FUNKSJONER ---
+        function toggleShop() {
+            const s = document.getElementById('shop');
+            s.style.display = s.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function buyUpgrade() {
+            if (money >= 200) {
+                money -= 200;
+                maxSpeed += 10;
+                document.getElementById('money').innerText = money;
+                alert("Motor oppgradert!");
             }
         }
 
-        function checkAchievements() {
-            const achBox = document.getElementById('ach-messages');
-            const milestones = [100, 1000, 5000, 10000];
-            
-            milestones.forEach(m => {
-                if (game.totalMined >= m && !game.achievements.includes(m)) {
-                    game.achievements.push(m);
-                    const div = document.createElement('div');
-                    div.innerText = `🏆 Mål nådd: ${m} ₿ totalt!`;
-                    if (achBox.innerText === "Ingen enda...") achBox.innerHTML = "";
-                    achBox.prepend(div);
-                }
-            });
-        }
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-        function updateUI() {
-            document.getElementById('balance').innerText = Math.floor(game.bitcoin).toLocaleString();
-            document.getElementById('click-power').innerText = getClickValue();
-            document.getElementById('passive-power').innerText = getPassiveValue();
-            document.getElementById('prestige-info').innerText = `Prestige Multiplikator: ${game.prestigeMultiplier}x`;
-
-            const shopUI = document.getElementById('shop-ui');
-            shopUI.innerHTML = '';
-
-            for (let id in game.upgrades) {
-                const item = game.upgrades[id];
-                if (!game.unlockedItems.includes(id)) continue;
-
-                const cost = Math.floor(item.cost * Math.pow(1.2, item.count));
-                const canAfford = game.bitcoin >= cost;
-
-                const div = document.createElement('div');
-                div.className = `shop-item ${canAfford ? '' : 'disabled'}`;
-                div.onclick = () => buyItem(id);
-                div.innerHTML = `
-                    <div class="item-info">
-                        <b>${item.name}</b> (${item.count})<br>
-                        <span class="item-price">Pris: ${cost} ₿</span><br>
-                        <small>Gir +${item.bonus} per ${item.type === 'click' ? 'klikk' : 'sek'}</small>
-                    </div>
-                `;
-                shopUI.appendChild(div);
-            }
-        }
-
-        // --- LOOPS ---
-        // Passiv inntekt (hvert sekund)
-        setInterval(() => {
-            const income = getPassiveValue();
-            if (income > 0) {
-                game.bitcoin += (income / 10); // Kjører 10 ganger i sekundet for smooth oppdatering
-                game.totalMined += (income / 10);
-                updateUI();
-            }
-        }, 100);
-
-        // Sjekk for events hvert 30. sekund
-        setInterval(startRandomEvent, 30000);
-
-        // Initial rendering
-        updateUI();
+        animate();
     </script>
 </body>
 </html>
